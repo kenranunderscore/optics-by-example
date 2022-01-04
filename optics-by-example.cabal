@@ -7,6 +7,7 @@ maintainer:         johannes.maier@mailbox.org
 
 library
     exposed-modules:  Chapter2
+                    , Chapter3
     build-depends:    base
                     , aeson
                     , containers

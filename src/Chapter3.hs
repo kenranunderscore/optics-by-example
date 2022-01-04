@@ -1,8 +1,10 @@
+{-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE InstanceSigs #-}
 {-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE TypeApplications #-}
@@ -18,7 +20,7 @@ data Ship = Ship
   { _name :: String,
     _numCrew :: Int
   }
-  deriving (Show)
+  deriving stock (Show)
 
 name :: Lens' Ship String
 name = lens getter setter
@@ -86,15 +88,86 @@ tricky :: Lens' Builder String
 tricky = lens getter setter
   where
     getter (Builder context build) = build context
-    setter builder@(Builder context build) s =
+    setter (Builder context build) s =
       let newBuild xs =
             if xs == context then s else build xs
-       in builder {_build = newBuild}
+       in Builder context newBuild
 
 -- Laws:
--- 1) view tricky (set tricky "foo" b)
---      == (_build $ set tricky "foo" b) (_context b)
---      == "foo"
--- 2) set tricky (view tricky b) b
---      == set tricky ((_build b) (_context b)) b
---      == TODO
+-- 1) view tricky (set tricky s b)
+--      == (_build $ set tricky s b) (_context b)
+--      == s
+-- 2) To show: set tricky (view tricky b) b == b
+--    We have to show that the result's _build function has identical output to
+--    b's _build for all inputs. Note that setting tricky doesn't change
+--    the _context.
+--
+--    let c = _context b
+--    (_build $ set tricky (view tricky b)) xs
+--      == (_build $ set tricky (_build b c)) xs
+--      == if xs == c then _build b c else _build b xs
+--      == _build b xs
+-- 3) The newBuild only ever 'changes' the value on the Builder's context, and
+--    the latest 'change' wins.
+
+-- Virtual Fields
+
+data User = User
+  { _firstName :: String,
+    _lastName :: String,
+    -- _username :: String,
+    _email :: String
+  }
+  deriving stock (Show)
+
+makeLenses ''User
+
+-- Should return "fl@example.com" after removing the username field
+u = User "first" "last" {- "fl" -} "fl@example.com" ^. username
+
+username :: Lens' User String
+username = lens getter setter
+  where
+    getter = _email
+    setter user s = user {_email = s}
+
+fullName :: Lens' User String
+fullName = lens getter setter
+  where
+    getter User {..} = _firstName <> " " <> _lastName
+    setter user name =
+      let first = takeWhile (' ' /=) name
+          last = tail $ dropWhile (' ' /=) name
+       in user {_firstName = first, _lastName = last}
+
+-- Self-Correcting Lenses
+
+data ProducePrices = ProducePrices
+  { _limePrice :: Float,
+    _lemonPrice :: Float
+  }
+  deriving stock (Show)
+
+setPrice price otherPrice =
+  ( realPrice,
+    if abs delta <= 0.5
+      then otherPrice
+      else (if delta < 0 then realPrice - 0.5 else realPrice + 0.5)
+  )
+  where
+    realPrice = if price < 0 then 0 else price
+    delta = otherPrice - realPrice
+
+limePrice :: Lens' ProducePrices Float
+limePrice = lens getter setter
+  where
+    getter = _limePrice
+    setter ProducePrices {..} price =
+      uncurry ProducePrices $ setPrice price _lemonPrice
+
+lemonPrice :: Lens' ProducePrices Float
+lemonPrice = lens getter setter
+  where
+    getter = _lemonPrice
+    setter ProducePrices {..} price =
+      uncurry ProducePrices $ setPrice price _limePrice
