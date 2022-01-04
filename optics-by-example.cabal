@@ -9,6 +9,7 @@ library
     exposed-modules:  Chapter2
                     , Chapter3
                     , Chapter4
+                    , Chapter5
     build-depends:    base
                     , aeson
                     , containers
