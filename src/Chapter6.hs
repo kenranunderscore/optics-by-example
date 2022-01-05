@@ -1,7 +1,9 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE RecordWildCards #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Chapter6 where
@@ -85,3 +87,75 @@ quotes = [("Why", "so", "serious?"), ("This", "is", "SPARTA")]
 -- [("Light", "Dark"), ("Happy", "Sad")] ^.. each . _1 == ["Light", "Happy"]
 -- [("Light", "Dark"), ("Happy", "Sad")] ^.. each . _2 . each == "DarkSad"
 -- ("Bond", "James", "Bond") ^.. each == ["Bond", "James", "Bond"]
+
+newtype Name = Name {name :: String}
+  deriving stock (Eq, Show, Generic)
+
+data ShipCrew = ShipCrew
+  { shipName :: Name,
+    captain :: Name,
+    firstMate :: Name,
+    conscripts :: [Name]
+  }
+  deriving stock (Eq, Show, Generic)
+
+-- Want: list the names of all crew members, including captain and
+-- first mate ==> 'folding' is like 'lens', it can create custom Folds
+
+-- folding :: Foldable f => (s -> f a) -> Fold s a
+
+collectCrewMembers :: ShipCrew -> [Name]
+collectCrewMembers ShipCrew {..} =
+  [captain, firstMate] <> conscripts
+
+crewMembers' :: Fold ShipCrew Name
+crewMembers' = folding collectCrewMembers
+
+myCrew :: ShipCrew
+myCrew =
+  ShipCrew
+    { shipName = Name "Purple Pearl",
+      captain = Name "Grumpy Roger",
+      firstMate = Name "Long-John Bronze",
+      conscripts = [Name "One-eyed Jack", Name "Filthy Frank"]
+    }
+
+-- Want: unpack and uppercase Names. Could map over the result above,
+-- but it's possible with a combinator, too!
+
+-- to :: (s -> a) -> Fold s a
+
+-- myCrew ^.. crewMembers . #name . to (fmap toUpper)
+
+crewNames :: Fold ShipCrew Name
+crewNames =
+  folding
+    ( \s ->
+        s ^.. #captain
+          <> s ^.. #firstMate
+          <> s ^.. #conscripts . folded
+    )
+
+-- Exercises -- Custom Folds
+
+-- Filled-in blanks:
+-- ["Yer", "a", "wizard", "Harry"] ^.. folded . folded == "YerawizardHarry"
+-- [[1,2,3], [4,5,6]] ^.. folded . folding (take 2) == [1,2,4,5]
+-- [[1,2,3], [4,5,6]] ^.. folded . to (take 2) == [[1,2], [4,5]]
+-- ["bob", "otto", "hannah"] ^.. folded . to reverse == ["bob", "otto", "hannah"]
+-- ("abc", "def") ^.. folding (\(a, b) -> [a, b]) . to reverse . folded == "cbafed"
+
+-- [1..5] ^.. folded . to (100*) == [100, 200, 300, 400, 500]
+-- (1, 2) ^.. both == [1,2]
+-- [(1, "one"), (2, "two")] ^.. folded . folded == ["one", "two"]
+-- (Just 1, Just 2, Just 3) ^.. each . folded == [1,2,3]
+-- [Left 1, Right 2, Left 3] ^.. folded . folded == [2]
+-- [([1, 2], [3, 4]), ([5, 6], [7, 8])] ^.. folded . both . folded == [1..8]
+-- [1..4] ^.. folded . to (\n -> if even n then Right n else Left n) == [Left 1, Right 2, Left 3, Right 4]
+-- [(1, (2, 3)), (4, (5, 6))] ^.. folded . to (\(a,(b,c)) -> [a,b,c]) . folded == [1..6]
+-- [(Just 1, Left "one"), (Nothing, Right 2)] ^.. folded . folding (\(a,b) -> a ^.. folded <> b ^.. folded) == [1,2]
+-- [(1, "one"), (2, "two")] ^.. folded . folding (\(a,b) -> [Left a, Right b])
+-- S.fromList ["apricots", "apples"] ^.. folded . to reverse . folded "selppaastocirpa"
+
+-- [(12, 45, 66), (91, 123, 87)] ^.. folded . to (reverse . show . (\(_,b,_) -> b)) . folded == "54321"
+-- [(1, "a"), (2, "b"), (3, "c"), (4, "d")] ^.. folded . folding (\(a, b) -> if odd a then Nothing else Just b) = ["b", "d"]
