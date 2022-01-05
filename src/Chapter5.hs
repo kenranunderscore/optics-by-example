@@ -1,70 +1,68 @@
+{-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE OverloadedLabels #-}
 {-# LANGUAGE TemplateHaskell #-}
 
 module Chapter5 where
 
 import Control.Lens
 import Data.Char (toUpper)
+import Data.Generics.Labels
+import GHC.Generics (Generic)
 
 data Gate = Gate
-  { _open :: Bool,
-    _oilTemp :: Float
+  { open :: Bool,
+    oilTemp :: Float
   }
-  deriving stock (Eq, Show)
-
-makeLenses ''Gate
+  deriving stock (Eq, Show, Generic)
 
 data Army = Army
-  { _archers :: Int,
-    _knights :: Int
+  { archers :: Int,
+    knights :: Int
   }
-  deriving stock (Eq, Show)
-
-makeLenses ''Army
+  deriving stock (Eq, Show, Generic)
 
 data Kingdom = Kingdom
-  { _name :: String,
-    _army :: Army,
-    _gate :: Gate
+  { name :: String,
+    army :: Army,
+    gate :: Gate
   }
-  deriving stock (Eq, Show)
-
-makeLenses ''Kingdom
+  deriving stock (Eq, Show, Generic)
 
 duloc :: Kingdom
 duloc = Kingdom "Duloc" (Army 22 14) (Gate True 10)
 
 goalA =
   duloc
-    & name .~ "Duloc: a perfect place"
-    & army . knights .~ 42
-    & gate . open .~ False
+    & #name .~ "Duloc: a perfect place"
+    & #army . #knights .~ 42
+    & #gate . #open .~ False
 
 goalAHard =
   duloc
-    & name <>~ ": a perfect place"
-    & army . knights +~ 28
-    & gate . open &&~ False
+    & #name <>~ ": a perfect place"
+    & #army . #knights +~ 28
+    & #gate . #open &&~ False
 
 goalB =
   duloc
-    & name .~ "Dulocinstein"
-    & army . archers .~ 17
-    & army . knights .~ 26
-    & gate . oilTemp .~ 100
+    & #name .~ "Dulocinstein"
+    & #army . #archers .~ 17
+    & #army . #knights .~ 26
+    & #gate . #oilTemp .~ 100
 
 goalBHard =
   duloc
-    & name <>~ "instein"
-    & army . archers -~ 5
-    & army . knights +~ 12
-    & gate . oilTemp ^~ 2
+    & #name <>~ "instein"
+    & #army . #archers -~ 5
+    & #army . #knights +~ 12
+    & #gate . #oilTemp ^~ 2
 
 goalC =
   duloc
-    & name <<>~ ": Home"
-    & _2 . name <>~ " of the talking Donkeys"
-    & _2 . gate . oilTemp //~ 2
+    & #name <<>~ ": Home"
+    & _2 . #name <>~ " of the talking Donkeys"
+    & _2 . #gate . #oilTemp //~ 2
 
 -- (False, "opossums") & _1 ||~ True
 
