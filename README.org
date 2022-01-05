@@ -1,0 +1,71 @@
+* Optics By Example
+
+This is where I'm putting my exercises and experiments from the book
+[[https://leanpub.com/optics-by-example][Optics By Example]] by [[https://github.com/ChrisPenner][Chris Penner]].  Do yourself a favor and buy it,
+it's awesome (so far, but I'm certain it'll only get even better)!
+
+** Notes
+
+I've read a bit more about how I'd like to use lenses in actual
+projects at work.  The book uses the [[https://hackage.haskell.org/package/lens][lens]] library, which is the most
+widespread Haskell optics library.  At work we will probably land on
+=lens= together with [[https://hackage.haskell.org/package/generic-lens][generic-lens]].  One of the main problems with
+(records in) Haskell has to do with record accessors.  With these
+packages we can do something like this:
+
+#+begin_src haskell 
+
+{-# language DuplicateRecordFields #-}
+{-# language OverloadedLabels #-}
+
+type Name = String
+
+newtype Street = Street { name :: Name }
+  deriving stock (Show, Generic)
+
+data Address = Address
+  { street :: Street
+  , number :: Int
+  }
+  deriving stock (Show, Generic)
+
+newtype Pet = Pet { name :: Name }
+  deriving stock (Show, Generic)
+
+data Person = Person
+  { name :: Name
+  , pets :: [Pet]
+  , address :: Address
+  }
+  deriving stock (Show, Generic)
+
+jane =
+  Person
+    "Jane"
+    [Pet "Fluffy", Pet "Zoey"]
+    (Address (Street "Highway") 5)
+
+janesName = jane ^. #name
+-- "Jane"
+janesPetsNames = jane ^.. #pets . folded . #name
+-- ["Fluffy", "Zoey"]
+anonymizedJane =
+  jane & #address . #street . #name .~ "REDACTED"
+       & #pets .~ []
+-- Person {name = "Jane", pets = [], address = Address {street = Street {name = "REDACTED"}, number = 5}}
+
+#+end_src
+
+That is, we don't have to worry about the clashing names and use the
+labels instead, but do not have to do anything like prefixing the
+fields with the type name or underscores.
+
+This solution will probably let us transition smoothly from not using
+lenses in many places yet.
+
+For greenfield projects I'd most likely go with the [[https://hackage.haskell.org/package/optics][optics]] package,
+though.  It takes a somewhat different approach (not using =.= for
+composition, but =%= instead; it's also implemented via projunctors
+instead of with the Van Laarhoven representation).  It has a similar
+mechanism with labels built-in and is very nicely documented,
+showcasing and comparing possible approaches of lens generation.
