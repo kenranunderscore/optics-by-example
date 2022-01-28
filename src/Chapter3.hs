@@ -10,7 +10,7 @@
 {-# LANGUAGE TypeApplications #-}
 {-# LANGUAGE TypeFamilies #-}
 
-module Section3 where
+module Chapter3 where
 
 import Control.Lens
 
