@@ -1,9 +1,7 @@
-{ pkgs ? import <nixpkgs> { } }:
+{ sources ? import ./nix/sources.nix }@args:
 
-pkgs.mkShell {
-  buildInputs = [
-    pkgs.haskellPackages.cabal-install
-    pkgs.haskellPackages.ghc
-    pkgs.haskellPackages.ormolu
-  ];
+let pkgs = import ./nix/pkgs.nix args;
+in pkgs.haskellPackages.shellFor {
+  packages = p: [ p.optics-by-example ];
+  nativeBuildInputs = [ pkgs.cabal-install pkgs.haskellPackages.ormolu ];
 }
